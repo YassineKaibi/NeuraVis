@@ -402,7 +402,7 @@ glEndQuery(GL_TIME_ELAPSED);
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/nn-visualizer.git
+git clone https://github.com/YassineKaibi/NeuraVis.git
 cd nn-visualizer
 
 # Create build directory
