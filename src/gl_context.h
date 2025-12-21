@@ -40,7 +40,7 @@ public:
      * @param config Window and OpenGL configuration
      * @return true if initialization successful
      */
-    bool initialize(const Config& config = Config{});
+    bool initialize(const Config& config);
 
     /**
      * @brief Start the main render loop
