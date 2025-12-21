@@ -51,8 +51,24 @@ void NeuralCompute::forward() {
     // Dispatch compute shader for each layer
     for (size_t i = 0; i < layerInfo.size(); ++i) {
         // Set layer index uniform
+        // Calculate activation offsets
+        uint32_t inputOffset = 0;
+        uint32_t outputOffset = 0;
+
+        // Sum up neurons in previous layers to get offsets
+        for (size_t j = 0; j < i; ++j) {
+            inputOffset += m_buffers->getTopology()[j];
+        }
+        outputOffset = inputOffset + layerInfo[i].inputSize;
+
+        // Set uniforms
         GLint layerLoc = glGetUniformLocation(m_computeProgram, "u_layerIndex");
+        GLint inputOffsetLoc = glGetUniformLocation(m_computeProgram, "u_inputOffset");
+        GLint outputOffsetLoc = glGetUniformLocation(m_computeProgram, "u_outputOffset");
+
         glUniform1ui(layerLoc, static_cast<GLuint>(i));
+        glUniform1ui(inputOffsetLoc, inputOffset);
+        glUniform1ui(outputOffsetLoc, outputOffset);
 
         // Calculate work groups (1D dispatch)
         uint32_t outputSize = layerInfo[i].outputSize;
