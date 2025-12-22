@@ -1,0 +1,98 @@
+#version 460 core
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+#define MAX_LAYERS 16
+
+// SSBOs
+layout(std430, binding = 0) readonly buffer WeightsBuffer {
+    float weights[];
+} weightsData;
+
+layout(std430, binding = 1) readonly buffer BiasesBuffer {
+    float biases[];
+} biasesData;
+
+layout(std430, binding = 2) buffer ActivationsBuffer {
+    float activations[];
+} activationsData;
+
+// Layer metadata UBO
+struct LayerInfo {
+    uint inputSize;
+    uint outputSize;
+    uint weightOffset;
+    uint biasOffset;
+    uint activationType;
+};
+
+layout(std430, binding = 0) uniform LayerInfoBlock {
+    LayerInfo layers[MAX_LAYERS];
+} layerInfo;
+
+// Uniforms
+uniform uint u_layerIndex;
+uniform uint u_inputOffset;
+uniform uint u_outputOffset;
+
+// Activation functions
+float relu(float x) {
+    return x > 0.0 ? x : 0.0;
+}
+
+float sigmoid(float x) {
+    return 1.0 / (1.0 + exp(-x));
+}
+
+float tanhActivation(float x) {
+    return tanh(x);
+}
+
+float applyActivation(float x, uint activationType) {
+    if (activationType == 0u) {
+        return relu(x);
+    } else if (activationType == 1u) {
+        return sigmoid(x);
+    } else if (activationType == 2u) {
+        return tanhActivation(x);
+    }
+    return x;  // Linear fallback
+}
+
+void main() {
+    // Get global thread ID (which output neuron we're computing)
+    uint outputNeuronID = gl_GlobalInvocationID.x;
+
+    // Get current layer info
+    LayerInfo layer = layerInfo.layers[u_layerIndex];
+
+    // Bounds check - exit if thread not needed
+    if (outputNeuronID >= layer.outputSize) {
+        return;
+    }
+
+    // Compute weighted sum
+    float sum = 0.0;
+    for (uint i = 0; i < layer.inputSize; i++) {
+        // Read input activation
+        uint activationIndex = u_inputOffset + i;
+        float inputActivation = activationsData.activations[activationIndex];
+
+    // Get weight for this connection
+    uint weightIndex = layer.weightOffset + (outputNeuronID * layer.inputSize) + i;
+    float weight = weightsData.weights[weightIndex];
+
+    // Accumulate
+    sum += inputActivation * weight;
+    }
+
+// Add bias
+uint biasIndex = layer.biasOffset + outputNeuronID;
+sum += biasesData.biases[biasIndex];
+
+// Apply activation function
+float activated = applyActivation(sum, layer.activationType);
+
+// Write result to output position
+activationsData.activations[u_outputOffset + outputNeuronID] = activated;
+}
