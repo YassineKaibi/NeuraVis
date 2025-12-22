@@ -26,7 +26,7 @@ struct LayerInfo {
     uint activationType;
 };
 
-layout(std430, binding = 0) uniform LayerInfoBlock {
+layout(std130, binding = 0) uniform LayerInfoBlock {
     LayerInfo layers[MAX_LAYERS];
 } layerInfo;
 

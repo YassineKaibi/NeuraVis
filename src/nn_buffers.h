@@ -24,6 +24,7 @@ public:
         uint32_t weightOffset;     // Offset into weights buffer (in floats)
         uint32_t biasOffset;       // Offset into biases buffer (in floats)
         uint32_t activationType;   // 0=ReLU, 1=Sigmoid, 2=Tanh
+        uint32_t _padding[3];
     };
 
     NeuralBuffers() = default;
