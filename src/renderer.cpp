@@ -19,8 +19,9 @@ bool Renderer::initialize(NeuralBuffers& buffers) {
         return false;
     }
 
-    // Load connection shaders
+    // Load connection shaders (with geometry shader for thick lines)
     m_connectionProgram = ShaderLoader::loadShaderProgram("shaders/connection.vert",
+                                                           "shaders/connection.geom",
                                                            "shaders/connection.frag");
     if (m_connectionProgram == 0) {
         std::cerr << "[ERROR] Failed to load connection shaders\n";
@@ -250,13 +251,7 @@ void Renderer::uploadConnections() {
 }
 
 void Renderer::renderConnections(const glm::mat4& viewMatrix, const glm::mat4& projMatrix) {
-    if (m_connectionCount == 0) {
-        std::cout << "[DEBUG] No connections to render\n";
-        return;
-    }
-
-    std::cout << "[DEBUG] Rendering " << m_connectionCount << " connections ("
-              << m_connectionVertices.size() << " vertices)\n";
+    if (m_connectionCount == 0) return;
 
     glUseProgram(m_connectionProgram);
 
@@ -266,7 +261,11 @@ void Renderer::renderConnections(const glm::mat4& viewMatrix, const glm::mat4& p
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &viewMatrix[0][0]);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, &projMatrix[0][0]);
 
-    // Draw lines (connectionVertices already has 2 vertices per connection)
+    // Upload line width to geometry shader
+    GLint lineWidthLoc = glGetUniformLocation(m_connectionProgram, "u_lineWidth");
+    glUniform1f(lineWidthLoc, m_config.connectionWidth);
+
+    // Draw lines (geometry shader will expand them into quads)
     glBindVertexArray(m_connectionVAO);
     glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(m_connectionVertices.size()));
     glBindVertexArray(0);
