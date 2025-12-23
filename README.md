@@ -497,8 +497,8 @@ Areas for contribution:
 
 ## Contact
 
-[Your contact information / portfolio link]
+[https://www.linkedin.com/in/mohamedyassinekaibi/]
 
 ---
 
-**Note:** This is an evolving project. Check the [project board](link) for current status and upcoming features.
+**Note:** This is an evolving project.
