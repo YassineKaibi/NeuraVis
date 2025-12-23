@@ -40,6 +40,17 @@ public:
     void forward();
 
     /**
+     * @brief Execute forward pass for a single layer
+     * @param layerIndex Index of the layer to compute (0-based)
+     */
+    void forwardLayer(size_t layerIndex);
+
+    /**
+     * @brief Get the total number of layers in the network
+     */
+    size_t getLayerCount() const;
+
+    /**
      * @brief Get last recorded GPU execution time in milliseconds
      */
     float getLastExecutionTime() const { return m_lastExecutionTimeMs; }
