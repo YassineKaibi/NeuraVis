@@ -17,12 +17,13 @@
 class Renderer {
 public:
     struct VisualizationConfig {
-        float neuronSize = 0.3f;       // Increased from 0.1 for better visibility
+        float neuronSize = 1.3f;       // Larger for better visibility
         bool useViridisColormap = true;
-        bool showConnections = false;  // Start with connections OFF (press C to enable)
+        bool showConnections = true;   // Start with connections ON for animation
         float minActivation = -1.0f;
         float maxActivation = 1.0f;
-        float connectionAlpha = 0.6f;  // Connection transparency
+        float connectionAlpha = 1.0f;  // Fully opaque connections
+        float connectionWidth = 1.5f;  // Thinner line width for connections
     };
 
     Renderer() = default;

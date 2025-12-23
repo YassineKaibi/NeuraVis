@@ -1,7 +1,7 @@
 #version 460 core
 
-// Input from vertex shader
-in float v_weight;
+// Input from geometry shader
+in float g_weight;
 
 // Output
 out vec4 FragColor;
@@ -27,10 +27,10 @@ vec3 weightToColor(float weight) {
 }
 
 void main() {
-    vec3 color = weightToColor(v_weight);
+    vec3 color = weightToColor(g_weight);
 
-    // Add transparency based on weight magnitude (weak connections more transparent)
-    float alpha = mix(0.15, 0.8, clamp(abs(v_weight) / 3.0, 0.0, 1.0));
+    // Fully opaque connections
+    float alpha = 1.0;
 
     FragColor = vec4(color, alpha);
 }
