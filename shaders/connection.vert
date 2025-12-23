@@ -8,7 +8,7 @@ layout(location = 1) in float a_weight;    // Weight value for this connection
 uniform mat4 u_view;
 uniform mat4 u_projection;
 
-// Output to fragment shader
+// Output to geometry shader
 out float v_weight;
 
 void main() {
