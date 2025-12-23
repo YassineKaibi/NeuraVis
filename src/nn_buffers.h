@@ -24,7 +24,9 @@ public:
         uint32_t weightOffset;     // Offset into weights buffer (in floats)
         uint32_t biasOffset;       // Offset into biases buffer (in floats)
         uint32_t activationType;   // 0=ReLU, 1=Sigmoid, 2=Tanh
-        uint32_t _padding[3];
+        uint32_t inputOffset;      // Offset into activations buffer for inputs
+        uint32_t outputOffset;     // Offset into activations buffer for outputs
+        uint32_t _padding[1];      // Align to 32 bytes for std140
     };
 
     NeuralBuffers() = default;
@@ -71,6 +73,12 @@ public:
      * @param activations Vector to store all activation values
      */
     void readAllActivations(std::vector<float>& activations) const;
+
+    /**
+     * @brief Read all weights from GPU (for connection visualization)
+     * @param weights Vector to store all weight values
+     */
+    void readWeights(std::vector<float>& weights) const;
 
     /**
      * @brief Bind buffers to shader binding points

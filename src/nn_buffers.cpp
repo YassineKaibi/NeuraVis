@@ -10,6 +10,9 @@ void NeuralBuffers::initialize(const std::vector<uint32_t>& layerSizes,
                                 const std::vector<uint32_t>& activations) {
     cleanup();  // Clean up any existing buffers
 
+    // Verify struct size matches std140 expectations (must be 32 bytes)
+    static_assert(sizeof(LayerInfo) == 32, "LayerInfo must be 32 bytes for std140 alignment");
+
     m_topology = layerSizes;
 
     // Compute total neurons
@@ -43,6 +46,8 @@ void NeuralBuffers::computeOffsets() {
     m_totalWeights = 0;
     m_totalBiases = 0;
 
+    uint32_t activationOffset = 0;  // Track position in activations buffer
+
     for (size_t i = 0; i < m_topology.size() - 1; ++i) {
         LayerInfo info;
         info.inputSize = m_topology[i];
@@ -51,7 +56,23 @@ void NeuralBuffers::computeOffsets() {
         info.biasOffset = m_totalBiases;
         info.activationType = 0;  // Will be set later
 
+        // Calculate activation buffer offsets
+        info.inputOffset = activationOffset;
+        info.outputOffset = activationOffset + info.inputSize;
+
+        // Initialize padding
+        info._padding[0] = 0;
+
         m_layerInfo.push_back(info);
+
+        // Debug: Print layer info
+        std::cout << "  Layer " << i << ": "
+                  << "in=" << info.inputSize << " out=" << info.outputSize
+                  << " | inputOff=" << info.inputOffset
+                  << " outputOff=" << info.outputOffset << "\n";
+
+        // Move offset forward by the number of neurons in this layer's input
+        activationOffset += m_topology[i];
 
         // Weights: inputSize * outputSize
         m_totalWeights += info.inputSize * info.outputSize;
@@ -154,6 +175,16 @@ void NeuralBuffers::readAllActivations(std::vector<float>& activations) const {
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
                        m_totalNeurons * sizeof(float),
                        activations.data());
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void NeuralBuffers::readWeights(std::vector<float>& weights) const {
+    weights.resize(m_totalWeights);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_weightsSSBO);
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+                       m_totalWeights * sizeof(float),
+                       weights.data());
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
