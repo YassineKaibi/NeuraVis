@@ -187,32 +187,61 @@ int main() {
     };
 
     int currentTest = 1;  // Start with (0,1) which has non-zero output
+    size_t currentLayer = 0;  // Track which layer to compute next
+    size_t totalLayers = compute.getLayerCount();
 
-    // Set initial input
+    // Animation state for smooth transitions
+    std::vector<float> currentActivations(buffers.getTotalNeuronCount(), 0.0f);
+    std::vector<float> targetActivations(buffers.getTotalNeuronCount(), 0.0f);
+    bool isAnimating = false;
+    float animationSpeed = 3.0f;  // Units per second (higher = faster)
+
+    // Set initial input (only input layer, don't compute yet)
     buffers.setInputs(tests[currentTest].input);
-    compute.forward();
-
-    // Print initial results
-    std::vector<float> outputs;
-    buffers.readOutputs(outputs);
-    std::cout << "  " << tests[currentTest].label << " = " << outputs[0] << "\n";
+    buffers.readAllActivations(currentActivations);  // Read initial state
+    targetActivations = currentActivations;  // Start with same values
 
     std::cout << "\n[INFO] Controls:\n";
     std::cout << "  Mouse Left Drag: Rotate camera\n";
     std::cout << "  Mouse Scroll: Zoom\n";
-    std::cout << "  1-4: Test XOR inputs (0,0) (0,1) (1,0) (1,1)\n";
-    std::cout << "  SPACE: Run forward pass\n";
-    std::cout << "  C: Toggle connection visualization (currently OFF)\n";
+    std::cout << "  1-4: Select XOR input (resets computation)\n";
+    std::cout << "  SPACE: Compute next layer (" << totalLayers << " layers total)\n";
+    std::cout << "  C: Toggle connection visualization\n";
     std::cout << "  ESC: Exit\n\n";
+
+    std::cout << "[INFO] Press SPACE " << totalLayers << " times to complete forward pass\n";
+    std::cout << "[INFO] Current input: " << tests[currentTest].label << " (Layer 0/" << totalLayers << " ready)\n\n";
 
     // ========================================
     // 8. Main Render Loop
     // ========================================
-    bool needsForwardPass = false;
 
     context.run(
         // Update callback
         [&](float deltaTime) {
+            // Animate activation transitions
+            if (isAnimating) {
+                bool allClose = true;
+                float lerpFactor = std::min(1.0f, deltaTime * animationSpeed);
+
+                for (size_t i = 0; i < currentActivations.size(); ++i) {
+                    float diff = targetActivations[i] - currentActivations[i];
+                    if (std::abs(diff) > 0.01f) {
+                        allClose = false;
+                        currentActivations[i] += diff * lerpFactor;
+                    } else {
+                        currentActivations[i] = targetActivations[i];
+                    }
+                }
+
+                // Upload interpolated activations to GPU for rendering
+                buffers.uploadActivations(currentActivations);
+
+                if (allClose) {
+                    isAnimating = false;
+                }
+            }
+
             // Handle keyboard input for XOR tests
             static bool key1WasPressed = false, key2WasPressed = false;
             static bool key3WasPressed = false, key4WasPressed = false;
@@ -224,27 +253,43 @@ int main() {
 
             if (key1Pressed && !key1WasPressed) {
                 currentTest = 0;
+                currentLayer = 0;
+                isAnimating = false;
+                buffers.clearActivations();
                 buffers.setInputs(tests[currentTest].input);
-                needsForwardPass = true;
-                std::cout << "[TEST] Input: " << tests[currentTest].label << "\n";
+                buffers.readAllActivations(currentActivations);
+                targetActivations = currentActivations;
+                std::cout << "[INPUT] " << tests[currentTest].label << " (computation reset to layer 0)\n";
             }
             if (key2Pressed && !key2WasPressed) {
                 currentTest = 1;
+                currentLayer = 0;
+                isAnimating = false;
+                buffers.clearActivations();
                 buffers.setInputs(tests[currentTest].input);
-                needsForwardPass = true;
-                std::cout << "[TEST] Input: " << tests[currentTest].label << "\n";
+                buffers.readAllActivations(currentActivations);
+                targetActivations = currentActivations;
+                std::cout << "[INPUT] " << tests[currentTest].label << " (computation reset to layer 0)\n";
             }
             if (key3Pressed && !key3WasPressed) {
                 currentTest = 2;
+                currentLayer = 0;
+                isAnimating = false;
+                buffers.clearActivations();
                 buffers.setInputs(tests[currentTest].input);
-                needsForwardPass = true;
-                std::cout << "[TEST] Input: " << tests[currentTest].label << "\n";
+                buffers.readAllActivations(currentActivations);
+                targetActivations = currentActivations;
+                std::cout << "[INPUT] " << tests[currentTest].label << " (computation reset to layer 0)\n";
             }
             if (key4Pressed && !key4WasPressed) {
                 currentTest = 3;
+                currentLayer = 0;
+                isAnimating = false;
+                buffers.clearActivations();
                 buffers.setInputs(tests[currentTest].input);
-                needsForwardPass = true;
-                std::cout << "[TEST] Input: " << tests[currentTest].label << "\n";
+                buffers.readAllActivations(currentActivations);
+                targetActivations = currentActivations;
+                std::cout << "[INPUT] " << tests[currentTest].label << " (computation reset to layer 0)\n";
             }
 
             key1WasPressed = key1Pressed;
@@ -252,12 +297,40 @@ int main() {
             key3WasPressed = key3Pressed;
             key4WasPressed = key4Pressed;
 
-            // Manual forward pass trigger
+            // Layer-by-layer forward pass trigger
             static bool spaceWasPressed = false;
             bool spacePressed = glfwGetKey(context.getWindow(), GLFW_KEY_SPACE) == GLFW_PRESS;
             if (spacePressed && !spaceWasPressed) {
-                needsForwardPass = true;
-                std::cout << "[INFO] Running forward pass...\n";
+                if (currentLayer < totalLayers) {
+                    std::cout << "[COMPUTE] Processing layer " << currentLayer << "...\n";
+
+                    // Capture current state BEFORE computing (to avoid flicker)
+                    buffers.readAllActivations(currentActivations);
+
+                    // Compute new layer on GPU
+                    compute.forwardLayer(currentLayer);
+                    currentLayer++;
+
+                    // Read new activations as target
+                    buffers.readAllActivations(targetActivations);
+
+                    // Upload current (pre-compute) state back to GPU for smooth animation start
+                    buffers.uploadActivations(currentActivations);
+
+                    // Start animation
+                    isAnimating = true;
+
+                    if (currentLayer == totalLayers) {
+                        std::vector<float> outputs;
+                        buffers.readOutputs(outputs);
+                        std::cout << "[RESULT] Forward pass complete! Output: " << outputs[0] << "\n\n";
+                    } else {
+                        std::cout << "[PROGRESS] Layer " << currentLayer - 1 << " done. "
+                                  << "Press SPACE again for layer " << currentLayer << "\n";
+                    }
+                } else {
+                    std::cout << "[INFO] Forward pass already complete. Select new input (keys 1-4) to reset.\n";
+                }
             }
             spaceWasPressed = spacePressed;
 
@@ -271,26 +344,6 @@ int main() {
                 std::cout << "[INFO] Connections: " << (config.showConnections ? "ON" : "OFF") << "\n";
             }
             cWasPressed = cPressed;
-
-            // Run forward pass if needed
-            if (needsForwardPass) {
-                compute.forward();
-
-                // Read and print all activations for debugging
-                std::vector<float> allActivations;
-                buffers.readAllActivations(allActivations);
-
-                std::cout << "  Activations: ";
-                for (size_t i = 0; i < allActivations.size(); ++i) {
-                    std::cout << allActivations[i];
-                    if (i < allActivations.size() - 1) std::cout << ", ";
-                }
-                std::cout << "\n";
-
-                std::cout << "  Output: " << allActivations.back() << "\n\n";
-
-                needsForwardPass = false;
-            }
         },
 
         // Render callback
