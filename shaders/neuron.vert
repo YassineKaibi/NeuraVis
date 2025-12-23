@@ -27,7 +27,8 @@ void main() {
     // Transform position to clip space
     gl_Position = u_projection * u_view * vec4(a_position, 1.0);
 
-    // Set point size (could scale by activation magnitude)
-    // For now, use constant size
-    gl_PointSize = u_neuronSize * 50.0;  // Scale factor for screen space
+    // Scale point size by activation magnitude (with minimum size)
+    float activationMagnitude = abs(v_activation);
+    float sizeFactor = mix(0.5, 1.5, clamp(activationMagnitude / 2.0, 0.0, 1.0));
+    gl_PointSize = u_neuronSize * 50.0 * sizeFactor;
 }
