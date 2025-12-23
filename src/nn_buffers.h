@@ -63,6 +63,18 @@ public:
     void setInputs(const std::vector<float>& inputs);
 
     /**
+     * @brief Clear all activations (zero out activation buffer)
+     * Call this when switching inputs to reset network state
+     */
+    void clearActivations();
+
+    /**
+     * @brief Upload arbitrary activation values to GPU
+     * Used for smooth animation interpolation
+     */
+    void uploadActivations(const std::vector<float>& activations);
+
+    /**
      * @brief Read output activations (last layer) from GPU
      * @param outputs Vector to store output values
      */

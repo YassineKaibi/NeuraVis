@@ -153,6 +153,31 @@ void NeuralBuffers::setInputs(const std::vector<float>& inputs) {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+void NeuralBuffers::clearActivations() {
+    // Zero out entire activation buffer
+    std::vector<float> zeros(m_totalNeurons, 0.0f);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_activationsSSBO);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+                    m_totalNeurons * sizeof(float),
+                    zeros.data());
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void NeuralBuffers::uploadActivations(const std::vector<float>& activations) {
+    if (activations.size() != m_totalNeurons) {
+        std::cerr << "[ERROR] Activation count mismatch. Expected "
+                  << m_totalNeurons << ", got " << activations.size() << "\n";
+        return;
+    }
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_activationsSSBO);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+                    activations.size() * sizeof(float),
+                    activations.data());
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
 void NeuralBuffers::readOutputs(std::vector<float>& outputs) const {
     uint32_t outputSize = m_topology.back();
     outputs.resize(outputSize);
