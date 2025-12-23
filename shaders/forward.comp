@@ -24,6 +24,9 @@ struct LayerInfo {
     uint weightOffset;
     uint biasOffset;
     uint activationType;
+    uint inputOffset;   // Offset into activations buffer for inputs
+    uint outputOffset;  // Offset into activations buffer for outputs
+    uint _padding;      // Align to 32 bytes for std140
 };
 
 layout(std140, binding = 0) uniform LayerInfoBlock {
@@ -32,8 +35,6 @@ layout(std140, binding = 0) uniform LayerInfoBlock {
 
 // Uniforms
 uniform uint u_layerIndex;
-uniform uint u_inputOffset;
-uniform uint u_outputOffset;
 
 // Activation functions
 float relu(float x) {
@@ -74,25 +75,25 @@ void main() {
     // Compute weighted sum
     float sum = 0.0;
     for (uint i = 0; i < layer.inputSize; i++) {
-        // Read input activation
-        uint activationIndex = u_inputOffset + i;
+        // Read input activation from UBO offset
+        uint activationIndex = layer.inputOffset + i;
         float inputActivation = activationsData.activations[activationIndex];
 
-    // Get weight for this connection
-    uint weightIndex = layer.weightOffset + (outputNeuronID * layer.inputSize) + i;
-    float weight = weightsData.weights[weightIndex];
+        // Get weight for this connection
+        uint weightIndex = layer.weightOffset + (outputNeuronID * layer.inputSize) + i;
+        float weight = weightsData.weights[weightIndex];
 
-    // Accumulate
-    sum += inputActivation * weight;
+        // Accumulate
+        sum += inputActivation * weight;
     }
 
-// Add bias
-uint biasIndex = layer.biasOffset + outputNeuronID;
-sum += biasesData.biases[biasIndex];
+    // Add bias
+    uint biasIndex = layer.biasOffset + outputNeuronID;
+    sum += biasesData.biases[biasIndex];
 
-// Apply activation function
-float activated = applyActivation(sum, layer.activationType);
+    // Apply activation function
+    float activated = applyActivation(sum, layer.activationType);
 
-// Write result to output position
-activationsData.activations[u_outputOffset + outputNeuronID] = activated;
+    // Write result to output position using UBO offset
+    activationsData.activations[layer.outputOffset + outputNeuronID] = activated;
 }
